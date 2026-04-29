@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>محاكاة الثقب الأسود</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=IBM+Plex+Sans+Arabic:wght@300;400;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #000005;
+  --panel: rgba(5, 8, 20, 0.92);
+  --border: rgba(99, 179, 237, 0.15);
+  --blue: #63b3ed;
+  --amber: #f6ad55;
+  --red: #fc8181;
+  --purple: #b794f4;
+  --green: #68d391;
+  --white: #e2e8f0;
+  --muted: #4a5568;
+  --font-display: 'Orbitron', monospace;
+  --font-ar: 'IBM Plex Sans Arabic', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--white);
+  font-family: var(--font-ar);
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: linear-gradient(180deg, rgba(0,0,10,0.98) 0%, transparent 100%);
+  padding: 0.8rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 0.5px solid var(--border);
+}
+.logo {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  background: radial-gradient(ellipse, #fff 0%, #63b3ed 40%, #b794f4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.header-badge {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ── Main layout ── */
+.main {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  height: 100vh;
+  padding-top: 52px;
+}
+@media (max-width: 768px) {
+  .main { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+}
+
+/* ── Canvas ── */
+.canvas-wrap {
+  position: relative;
+  overflow: hidden;
+  background: #000005;
+}
+#mainCanvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+/* ── Overlay info ── */
+.overlay-info {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: rgba(99,179,237,0.6);
+  line-height: 1.8;
+  pointer-events: none;
+}
+.overlay-info span { color: rgba(246,173,85,0.8); }
+
+/* ── Sidebar ── */
+.sidebar {
+  background: var(--panel);
+  border-left: 0.5px solid var(--border);
+  overflow-y: auto;
+  padding: 1.2rem 1rem;
+  backdrop-filter: blur(20px);
+}
+.sidebar::-webkit-scrollbar { width: 3px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 0.5px solid var(--border);
+}
+
+/* ── Controls ── */
+.control-group { margin-bottom: 1.2rem; }
+.control-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+.control-label span:first-child {
+  font-size: 0.8rem;
+  color: var(--white);
+  font-weight: 600;
+}
+.control-label .val {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--amber);
+}
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  margin-bottom: 0.2rem;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--amber);
+  border: 2px solid rgba(0,0,0,0.5);
+  transition: transform 0.1s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+.range-blue  { background: linear-gradient(to right, var(--blue) var(--p,50%), #1a2235 var(--p,50%)); }
+.range-amber { background: linear-gradient(to right, var(--amber) var(--p,50%), #1a2235 var(--p,50%)); }
+.range-purple{ background: linear-gradient(to right, var(--purple) var(--p,50%), #1a2235 var(--p,50%)); }
+.range-red   { background: linear-gradient(to right, var(--red) var(--p,50%), #1a2235 var(--p,50%)); }
+.range-green { background: linear-gradient(to right, var(--green) var(--p,50%), #1a2235 var(--p,50%)); }
+
+/* ── Toggle buttons ── */
+.toggle-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.toggle-btn {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 0.5px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-ar);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  min-width: 70px;
+}
+.toggle-btn.active {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: rgba(99,179,237,0.1);
+}
+.toggle-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--white); }
+
+/* ── Metric cards ── */
+.metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 1rem;
+}
+.metric {
+  background: rgba(99,179,237,0.04);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.5rem;
+  text-align: center;
+}
+.metric-val {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--amber);
+  line-height: 1;
+  margin-bottom: 3px;
+}
+.metric-lbl {
+  font-size: 0.62rem;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+/* ── Info box ── */
+.info-box {
+  background: rgba(183,148,244,0.05);
+  border: 0.5px solid rgba(183,148,244,0.2);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.8rem;
+  font-size: 0.76rem;
+  color: rgba(226,232,240,0.7);
+  line-height: 1.7;
+}
+.info-box strong { color: var(--purple); }
+
+/* ── Divider ── */
+.div { height: 0.5px; background: var(--border); margin: 1rem 0; }
+
+/* ── Bottom mobile bar ── */
+.mobile-bar {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--panel);
+  border-top: 0.5px solid var(--border);
+  padding: 0.6rem 1rem;
+  gap: 0.5rem;
+  backdrop-filter: blur(20px);
+}
+@media (max-width: 768px) { .mobile-bar { display: flex; } }
+
+/* ── Legend ── */
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 1rem;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Launch Panel ── */
+.launch-panel {
+  background: rgba(246,173,85,0.04);
+  border: 0.5px solid rgba(246,173,85,0.2);
+  border-radius: 10px;
+  padding: 0.9rem 0.8rem;
+  margin-bottom: 0.8rem;
+}
+.launch-panel .section-title {
+  color: rgba(246,173,85,0.6);
+  border-bottom-color: rgba(246,173,85,0.15);
+  margin-bottom: 0.7rem;
+}
+.launch-btn {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 7px;
+  border: 0.5px solid rgba(246,173,85,0.35);
+  background: rgba(246,173,85,0.07);
+  color: var(--amber);
+  font-family: var(--font-ar);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+.launch-btn:hover {
+  background: rgba(246,173,85,0.15);
+  border-color: var(--amber);
+  box-shadow: 0 0 14px rgba(246,173,85,0.2);
+  transform: translateY(-1px);
+}
+.launch-btn:active { transform: translateY(0); }
+.launch-btn.active-mode {
+  background: rgba(252,129,129,0.12);
+  border-color: var(--red);
+  color: var(--red);
+  box-shadow: 0 0 16px rgba(252,129,129,0.15);
+}
+.launch-btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-bottom: 6px;
+}
+.launch-btn-sm {
+  padding: 7px 6px;
+  border-radius: 7px;
+  border: 0.5px solid rgba(99,179,237,0.25);
+  background: rgba(99,179,237,0.05);
+  color: var(--blue);
+  font-family: var(--font-ar);
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+.launch-btn-sm:hover {
+  background: rgba(99,179,237,0.12);
+  border-color: var(--blue);
+}
+.stat-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 5px;
+  margin-top: 8px;
+}
+.stat-box {
+  background: rgba(0,0,0,0.3);
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 3px;
+  text-align: center;
+}
+.stat-val {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--amber);
+  line-height: 1;
+}
+.stat-lbl {
+  font-size: 0.56rem;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+/* ── Aim cursor overlay ── */
+#aimCursor {
+  position: absolute;
+  pointer-events: none;
+  display: none;
+  z-index: 10;
+  transform: translate(-50%, -50%);
+}
+#aimCursor svg { filter: drop-shadow(0 0 6px rgba(252,129,129,0.8)); }
+
+/* ── Impact flash overlay ── */
+#impactCanvas {
+  position: absolute;
+  top: 0; left: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ── Drag arrow overlay ── */
+#dragArrow {
+  position: absolute;
+  top: 0; left: 0;
+  pointer-events: none;
+  z-index: 8;
+}
+
+/* ── Notification toast ── */
+#toast {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(246,173,85,0.12);
+  border: 0.5px solid rgba(246,173,85,0.3);
+  border-radius: 8px;
+  padding: 6px 16px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--amber);
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  white-space: nowrap;
+  z-index: 20;
+}
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">BLACK HOLE SIMULATION</div>
+  <div style="text-align:center">
+    <div style="font-family:var(--font-ar);font-size:0.85rem;color:var(--white)">Project by : ABDELLAH & SALAH & NOUR EDINE & OUSSAMA & ANIS & ABDELFATTAH
+    </div>
+    <div class="header-badge">General Relativity Simulator</div>
+  </div>
+  <div class="header-badge">v2.0 · Real-Time Physics</div>
+</header>
+
+<div class="main">
+
+  <!-- Canvas -->
+  <div class="canvas-wrap">
+    <canvas id="mainCanvas"></canvas>
+    <!-- Aim cursor shown in throw mode -->
+    <div id="aimCursor">
+      <svg width="44" height="44" viewBox="0 0 44 44">
+        <circle cx="22" cy="22" r="14" fill="none" stroke="#fc8181" stroke-width="1.2" opacity="0.9"/>
+        <circle cx="22" cy="22" r="3"  fill="#fc8181" opacity="0.9"/>
+        <line x1="22" y1="2"  x2="22" y2="12" stroke="#fc8181" stroke-width="1.5"/>
+        <line x1="22" y1="32" x2="22" y2="42" stroke="#fc8181" stroke-width="1.5"/>
+        <line x1="2"  y1="22" x2="12" y2="22" stroke="#fc8181" stroke-width="1.5"/>
+        <line x1="32" y1="22" x2="42" y2="22" stroke="#fc8181" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <!-- Drag direction arrow -->
+    <canvas id="dragArrow"></canvas>
+    <!-- Impact flash layer -->
+    <canvas id="impactCanvas"></canvas>
+    <!-- Toast notification -->
+    <div id="toast"></div>
+    <div class="overlay-info" id="overlayInfo">
+      <div>FPS: <span id="fpsDisplay">60</span></div>
+      <div>كتلة الشواررزشيلد: <span id="rsDisplay">—</span> km</div>
+      <div>درجة حرارة هوكينج: <span id="thDisplay">—</span></div>
+      <div>الجاذبية السطحية: <span id="gDisplay">—</span></div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <div class="section-title">⬡ خصائص الثقب الأسود</div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span>الكتلة (M)</span>
+        <span class="val" id="massVal">10 M☉</span>
+      </div>
+      <input type="range" class="range-amber" id="massSlider" min="1" max="100" value="10"
+             oninput="updateParam('mass',this)">
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span>دوران كير (a)</span>
+        <span class="val" id="spinVal">0.50</span>
+      </div>
+      <input type="range" class="range-purple" id="spinSlider" min="0" max="99" value="50"
+             oninput="updateParam('spin',this)">
+    </div>
+    <div class="control-group">
+      <div class="control-label">
+        <span>كثافة قرص التراكم</span>
+        <span class="val" id="diskVal">70%</span>
+      </div>
+      <input type="range" class="range-blue" id="diskSlider" min="0" max="100" value="70"
+             oninput="updateParam('disk',this)">
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span>سرعة الدوران</span>
+        <span class="val" id="speedVal">1.0x</span>
+      </div>
+      <input type="range" class="range-green" id="speedSlider" min="1" max="50" value="10"
+             oninput="updateParam('speed',this)">
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span>زاوية الرصد (i)</span>
+        <span class="val" id="inclineVal">20°</span>
+      </div>
+      <input type="range" class="range-blue" id="inclineSlider" min="0" max="89" value="20"
+             oninput="updateParam('incline',this)">
+    </div>
+
+    <div class="div"></div>
+
+    <!-- ══ LAUNCH PANEL ══ -->
+    <div class="launch-panel">
+      <div class="section-title">🚀 قذف النجوم</div>
+
+      <!-- زر الوضع الرئيسي -->
+      <button class="launch-btn" id="btnThrowMode" onclick="toggleThrowMode()">
+        🎯 وضع الإطلاق المباشر
+      </button>
+
+      <!-- أزرار الإطلاق السريع -->
+      <div class="launch-btn-row">
+        <button class="launch-btn-sm" onclick="launchRandomStar()">⭐ نجم عشوائي</button>
+        <button class="launch-btn-sm" onclick="launchStarBurst()">✨ وابل نجوم</button>
+      </div>
+      <div class="launch-btn-row">
+        <button class="launch-btn-sm" onclick="launchNeutronStar()">💥 نجم نيتروني</button>
+        <button class="launch-btn-sm" onclick="clearLaunched()">🗑 مسح</button>
+      </div>
+
+      <!-- إحصائيات -->
+      <div class="stat-row">
+        <div class="stat-box">
+          <div class="stat-val" id="statActive">0</div>
+          <div class="stat-lbl">نشط</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="statAbsorbed">0</div>
+          <div class="stat-lbl">ابتُلع</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="statOrbiting">0</div>
+          <div class="stat-lbl">مداري</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">⬡ طبقات العرض</div>
+
+    <div class="toggle-row">
+      <button class="toggle-btn active" id="btn-lensing" onclick="toggleLayer('lensing')">تشويه الضوء</button>
+      <button class="toggle-btn active" id="btn-disk"    onclick="toggleLayer('disk')">قرص التراكم</button>
+    </div>
+    <div class="toggle-row">
+      <button class="toggle-btn active" id="btn-jets"    onclick="toggleLayer('jets')">النفاثات</button>
+      <button class="toggle-btn active" id="btn-stars"   onclick="toggleLayer('stars')">النجوم</button>
+      <button class="toggle-btn active" id="btn-photon"  onclick="toggleLayer('photon')">دائرة الفوتون</button>
+    </div>
+    <div class="toggle-row">
+      <button class="toggle-btn active" id="btn-doppler" onclick="toggleLayer('doppler')">تأثير دوبلر</button>
+      <button class="toggle-btn" id="btn-grid"     onclick="toggleLayer('grid')">شبكة الزمكان</button>
+    </div>
+
+    <div class="div"></div>
+    <div class="section-title">⬡ القياسات الفيزيائية</div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-val" id="m-rs">29.5</div>
+        <div class="metric-lbl">نصف قطر<br>شوارزشيلد (km)</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="m-isco">88.5</div>
+        <div class="metric-lbl">ISCO<br>(km)</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="m-hawk">6.2 nK</div>
+        <div class="metric-lbl">درجة حرارة<br>هوكينج</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="m-lum">10³⁸</div>
+        <div class="metric-lbl">الإضاءة<br>(W)</div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>تشويه الجاذبية للضوء</strong><br>
+      يحني الثقب الأسود الضوء القادم من النجوم خلفه — هذا ما يُعرف بـ <strong>العدسة الجاذبية</strong> (Gravitational Lensing). كلما اقترب الضوء من أفق الحدث كلما انحنى أكثر.
+    </div>
+
+    <div class="div"></div>
+    <div class="section-title">⬡ دليل الألوان</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#ff6b35"></div>المنطقة الداخلية الساخنة جداً (>10⁷ K)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f6ad55"></div>منطقة وسطى (~10⁶ K)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#63b3ed"></div>الحافة الخارجية الباردة (~10⁵ K)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#b794f4;opacity:0.7"></div>دائرة الفوتون (r = 1.5 Rₛ)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#000;border:1px solid #fff"></div>أفق الحدث (r = Rₛ)</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// BLACK HOLE PHYSICS SIMULATION
+// Gravitational Lensing + Accretion Disk + Doppler Effect
+// ════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('mainCanvas');
+const ctx    = canvas.getContext('2d');
+
+// ── Physics Parameters ──────────────────────────────────────
+const G  = 6.674e-11;   // m³/kg·s²
+const c  = 3e8;         // m/s
+const M_sun = 1.989e30; // kg
+
+const params = {
+  mass: 10,       // solar masses
+  spin: 0.5,      // Kerr parameter 0-1
+  disk: 0.7,      // accretion density
+  speed: 1.0,     // animation speed
+  incline: 20,    // inclination degrees
+};
+
+const layers = {
+  lensing: true,
+  disk:    true,
+  jets:    true,
+  stars:   true,
+  photon:  true,
+  doppler: true,
+  grid:    false,
+};
+
+// ── Derived physics ─────────────────────────────────────────
+function schwarzschildRadius() {
+  // Rs = 2GM/c²
+  const M = params.mass * M_sun;
+  return (2 * G * M) / (c * c); // meters
+}
+
+function iscoRadius() {
+  // ISCO for Kerr: simplified formula based on spin
+  const a = params.spin;
+  const rs = schwarzschildRadius();
+  // Prograde ISCO (approximation)
+  const Z1 = 1 + Math.cbrt(1 - a*a) * (Math.cbrt(1+a) + Math.cbrt(1-a));
+  const Z2 = Math.sqrt(3*a*a + Z1*Z1);
+  const r_isco_norm = 3 + Z2 - Math.sqrt((3-Z1)*(3+Z1+2*Z2));
+  return r_isco_norm * rs / 2;
+}
+
+function hawkingTemp() {
+  // T_H = ħc³/(8πGMk_B)
+  const hbar = 1.0546e-34;
+  const k_B  = 1.38e-23;
+  const M    = params.mass * M_sun;
+  return (hbar * c*c*c) / (8 * Math.PI * G * M * k_B);
+}
+
+function updateMetrics() {
+  const rs = schwarzschildRadius() / 1000; // km
+  const isco = iscoRadius() / 1000;
+  const th = hawkingTemp();
+  const lum_exp = Math.round(Math.log10(params.disk * params.mass * 1e36));
+
+  document.getElementById('m-rs').textContent   = (rs).toFixed(1);
+  document.getElementById('m-isco').textContent = (isco).toFixed(1);
+  document.getElementById('m-hawk').textContent = th < 1e-9 ? (th*1e9).toFixed(1)+' nK' :
+                                                   th < 1e-6 ? (th*1e6).toFixed(1)+' μK' :
+                                                   th.toExponential(1)+' K';
+  document.getElementById('m-lum').textContent  = '10' + lum_exp.toString().sup ? `10^${lum_exp}` : lum_exp;
+  document.getElementById('rsDisplay').textContent = rs.toFixed(1) + ' km';
+  document.getElementById('thDisplay').textContent = document.getElementById('m-hawk').textContent;
+}
+
+// ── Scene state ─────────────────────────────────────────────
+let W, H, cx, cy, BH_R; // canvas dimensions & black hole pixel radius
+let t = 0;
+let lastTime = 0;
+let fps = 60;
+let frameCount = 0;
+let lastFpsTime = 0;
+
+// ── Stars ────────────────────────────────────────────────────
+const STAR_COUNT = 400;
+let stars = [];
+
+function initStars() {
+  stars = [];
+  for (let i = 0; i < STAR_COUNT; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = Math.random() * Math.sqrt(W*W + H*H) * 0.6 + BH_R * 3;
+    stars.push({
+      x: cx + Math.cos(angle) * dist,
+      y: cy + Math.sin(angle) * dist,
+      r: Math.random() * 1.5 + 0.2,
+      brightness: Math.random(),
+      twinkle: Math.random() * Math.PI * 2,
+      twinkleSpeed: 0.02 + Math.random() * 0.05,
+      color: ['#ffffff','#aad4ff','#ffd9aa','#ffaaaa','#d4aaff'][Math.floor(Math.random()*5)],
+    });
+  }
+}
+
+// ── Accretion disk particles ─────────────────────────────────
+const DISK_PARTICLES = 3000;
+let diskParticles = [];
+
+function initDiskParticles() {
+  diskParticles = [];
+  const Rs = BH_R;
+  for (let i = 0; i < DISK_PARTICLES; i++) {
+    const r     = Rs * (1.5 + Math.random() * 5.5); // 1.5Rs to 7Rs
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.pow(Rs / r, 0.5) * (0.008 + Math.random() * 0.004);
+    const thick = (Math.random() - 0.5) * 0.25 * Math.pow(Rs/r, 1.5);
+    const bright= 0.3 + Math.random() * 0.7;
+    const layer = Math.floor(Math.random() * 3);
+    diskParticles.push({ r, angle, speed, thick, bright, layer });
+  }
+}
+
+// ── Gravitational lensing ──────────────────────────────────
+function lensingOffset(sx, sy, bhx, bhy, Rs) {
+  const dx = sx - bhx, dy = sy - bhy;
+  const d  = Math.sqrt(dx*dx + dy*dy);
+  if (d < Rs * 0.5) return { x: bhx, y: bhy, alpha: 0 };
+
+  // Einstein ring radius approximation
+  const theta_E = Rs / d;
+  const alpha   = 2 * theta_E * theta_E * (Rs / d);
+  const lx = sx - alpha * dx;
+  const ly = sy - alpha * dy;
+  const fade = Math.max(0, Math.min(1, (d - Rs) / (Rs * 3)));
+  return { x: lx, y: ly, alpha: fade };
+}
+
+// ── Color from temperature (blackbody) ──────────────────────
+function tempToColor(T_norm, doppler = 1.0) {
+  // T_norm: 0=outer(cool) to 1=inner(hot)
+  const T_shifted = Math.min(1, T_norm * doppler);
+  const r = Math.min(255, Math.floor(255 * Math.pow(T_shifted, 0.4)));
+  const g = Math.min(255, Math.floor(200 * Math.pow(T_shifted, 0.8)));
+  const b = Math.min(255, Math.floor(150 * Math.pow(T_shifted, 1.4)));
+  if (T_shifted > 0.8) {
+    return `rgba(255,${Math.floor(150+100*T_shifted)},${Math.floor(100*T_shifted)},`;
+  } else if (T_shifted > 0.5) {
+    return `rgba(${r+100},${g+80},${b},`;
+  } else {
+    return `rgba(${Math.floor(100*T_shifted+20)},${Math.floor(80*T_shifted+20)},${Math.floor(200*T_shifted+55)},`;
+  }
+}
+
+// ── Main draw ────────────────────────────────────────────────
+function draw(timestamp) {
+  requestAnimationFrame(draw);
+
+  // FPS
+  frameCount++;
+  if (timestamp - lastFpsTime > 500) {
+    fps = Math.round(frameCount * 1000 / (timestamp - lastFpsTime));
+    document.getElementById('fpsDisplay').textContent = fps;
+    frameCount = 0;
+    lastFpsTime = timestamp;
+  }
+
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+  t += dt * params.speed;
+
+  const Rs = BH_R;
+
+  // ── Background: space + nebula ──────────────────────────
+  ctx.fillStyle = '#000005';
+  ctx.fillRect(0, 0, W, H);
+
+  // Deep space glow (nebula effect)
+  const nebulaGrad = ctx.createRadialGradient(cx, cy, Rs*2, cx, cy, Math.max(W,H)*0.8);
+  nebulaGrad.addColorStop(0,   'rgba(20,5,50,0.4)');
+  nebulaGrad.addColorStop(0.3, 'rgba(5,10,40,0.2)');
+  nebulaGrad.addColorStop(1,   'rgba(0,0,10,0)');
+  ctx.fillStyle = nebulaGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle nebula clouds
+  for (let ni = 0; ni < 3; ni++) {
+    const nx = cx + Math.cos(t*0.05 + ni*2.1) * Rs * 6;
+    const ny = cy + Math.sin(t*0.07 + ni*1.7) * Rs * 3;
+    const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, Rs * 8);
+    const cols = ['rgba(30,5,80,', 'rgba(5,20,60,', 'rgba(40,5,30,'];
+    ng.addColorStop(0, cols[ni] + '0.06)');
+    ng.addColorStop(1, cols[ni] + '0)');
+    ctx.fillStyle = ng;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // ── Spacetime grid ──────────────────────────────────────
+  if (layers.grid) drawSpacetimeGrid(Rs);
+
+  // ── Background stars (lensed) ───────────────────────────
+  if (layers.stars) drawStars(Rs, t);
+
+  // ── Accretion disk (behind BH) ──────────────────────────
+  if (layers.disk) drawDisk(Rs, t, 'back');
+
+  // ── Relativistic jets ───────────────────────────────────
+  if (layers.jets) drawJets(Rs, t);
+
+  // ── Event horizon + black hole ──────────────────────────
+  drawBlackHole(Rs, t);
+
+  // ── Accretion disk (front) ──────────────────────────────
+  if (layers.disk) drawDisk(Rs, t, 'front');
+
+  // ── Photon sphere ───────────────────────────────────────
+  if (layers.photon) drawPhotonSphere(Rs, t);
+
+  // ── Gravitational lensing ring ──────────────────────────
+  if (layers.lensing) drawLensingRing(Rs, t);
+
+  // ── Launched stars & impact effects ─────────────────────
+  drawLaunched(dt);
+  updateLaunchStats();
+}
+
+function drawSpacetimeGrid(Rs) {
+  const gridSize = Rs * 1.5;
+  const cols = Math.ceil(W / gridSize) + 4;
+  const rows = Math.ceil(H / gridSize) + 4;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(99,179,237,0.08)';
+  ctx.lineWidth = 0.5;
+
+  for (let i = -2; i < cols; i++) {
+    for (let j = -2; j < rows; j++) {
+      const x = i * gridSize - (gridSize * 2);
+      const y = j * gridSize - (gridSize * 2);
+      // Warp the grid point toward black hole
+      const dx = x - cx, dy = y - cy;
+      const d  = Math.sqrt(dx*dx + dy*dy);
+      const warp = Math.min(Rs * 3, (Rs * Rs * 4) / Math.max(d, Rs * 0.5));
+      const wx = x - (dx/d) * warp * 0.6;
+      const wy = y - (dy/d) * warp * 0.6;
+      // Draw grid lines
+      if (i > -2) {
+        const px = (i-1)*gridSize - gridSize*2;
+        const py = j*gridSize - gridSize*2;
+        const pdx = px-cx, pdy = py-cy;
+        const pd = Math.sqrt(pdx*pdx+pdy*pdy);
+        const pw = Math.min(Rs*3, Rs*Rs*4/Math.max(pd,Rs*0.5));
+        ctx.beginPath();
+        ctx.moveTo(px-(pdx/pd)*pw*0.6, py-(pdy/pd)*pw*0.6);
+        ctx.lineTo(wx, wy);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function drawStars(Rs, time) {
+  ctx.save();
+  for (let s of stars) {
+    const twinkle = 0.6 + 0.4 * Math.sin(time * s.twinkleSpeed + s.twinkle);
+    const dx = s.x - cx, dy = s.y - cy;
+    const d  = Math.sqrt(dx*dx + dy*dy);
+
+    // Lensing: deflect stars
+    let drawX = s.x, drawY = s.y;
+    if (layers.lensing && d < Rs * 12) {
+      const lensed = lensingOffset(s.x, s.y, cx, cy, Rs);
+      drawX = lensed.x;
+      drawY = lensed.y;
+    }
+
+    // Einstein ring ghost (mirrored star)
+    if (layers.lensing && d < Rs * 8 && d > Rs * 2) {
+      const mirrorAngle = Math.atan2(dy, dx) + Math.PI;
+      const mirrorD = Rs * Rs * 2 / d;
+      const ghostX  = cx + Math.cos(mirrorAngle) * mirrorD;
+      const ghostY  = cy + Math.sin(mirrorAngle) * mirrorD;
+      if (mirrorD > Rs * 1.1) {
+        ctx.beginPath();
+        ctx.arc(ghostX, ghostY, s.r * 0.5, 0, Math.PI*2);
+        ctx.fillStyle = s.color.replace(')', `,${0.15*twinkle})`).replace('rgb','rgba');
+        ctx.fill();
+      }
+    }
+
+    ctx.beginPath();
+    ctx.arc(drawX, drawY, s.r * twinkle, 0, Math.PI*2);
+    ctx.fillStyle = s.color;
+    ctx.globalAlpha = twinkle * (0.5 + 0.5 * Math.min(1, (d - Rs*1.5)/Rs));
+    ctx.fill();
+    // Star glow
+    if (s.r > 1) {
+      const glow = ctx.createRadialGradient(drawX, drawY, 0, drawX, drawY, s.r*4);
+      glow.addColorStop(0, s.color.replace('rgb','rgba').replace(')',`,${0.3*twinkle})`));
+      glow.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(drawX, drawY, s.r*4, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawDisk(Rs, time, side) {
+  ctx.save();
+  const inclineRad = params.incline * Math.PI / 180;
+  const scaleY = Math.sin(inclineRad + 0.1);
+
+  for (let p of diskParticles) {
+    // Orbital period: faster near BH
+    p.angle += p.speed * params.speed;
+
+    const cosA = Math.cos(p.angle);
+    const sinA = Math.sin(p.angle);
+    const px   = cx + cosA * p.r;
+    const py   = cy + sinA * p.r * scaleY + p.thick * p.r * 0.3;
+
+    // Front vs back of disk
+    const isFront = sinA * scaleY + p.thick > 0;
+    if ((side === 'front') !== isFront) continue;
+
+    // Temperature: hotter closer to BH
+    const T_norm = 1 - (p.r - Rs * 1.5) / (Rs * 5.5);
+
+    // Doppler: blueshift approaching side (positive x), redshift receding
+    let doppler = 1.0;
+    if (layers.doppler) {
+      const vOverC = Math.sqrt(Rs / (2 * p.r)) * 0.5;
+      const proj   = -sinA; // approaching when sin < 0 (left side)
+      const shift  = 1 + proj * vOverC * 2;
+      doppler = Math.max(0.3, Math.min(2.0, shift));
+    }
+
+    const colorBase = tempToColor(Math.max(0, T_norm), doppler);
+    const alpha = p.bright * Math.min(1, T_norm + 0.2) * params.disk;
+
+    // Particle size: bigger/brighter near BH
+    const pSize = Rs * 0.06 * (1 + T_norm) * p.bright;
+
+    ctx.beginPath();
+    ctx.arc(px, py, pSize, 0, Math.PI*2);
+    ctx.fillStyle = colorBase + alpha + ')';
+    ctx.fill();
+
+    // Inner glow for hot particles
+    if (T_norm > 0.6 && p.bright > 0.7) {
+      const glowG = ctx.createRadialGradient(px, py, 0, px, py, pSize * 3);
+      glowG.addColorStop(0, colorBase + alpha * 0.6 + ')');
+      glowG.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = glowG;
+      ctx.beginPath();
+      ctx.arc(px, py, pSize * 3, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawJets(Rs, time) {
+  ctx.save();
+
+  // Two relativistic jets: top and bottom
+  for (let dir of [-1, 1]) {
+    const jetLength = Rs * 8;
+    const steps = 40;
+
+    for (let i = 0; i < steps; i++) {
+      const frac = i / steps;
+      const jy   = cy + dir * frac * jetLength;
+      const jx   = cx;
+      const spread = Rs * 0.08 * (1 + frac * 3);
+      const alpha  = (1 - frac) * 0.6 * Math.max(0, Math.sin(time*2 + i*0.5)*0.3+0.7);
+      const T      = 1 - frac;
+
+      const g = ctx.createRadialGradient(jx, jy, 0, jx, jy, spread);
+      g.addColorStop(0, `rgba(183,148,244,${alpha})`);
+      g.addColorStop(0.4, `rgba(99,179,237,${alpha*0.5})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(jx, jy, spread, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Jet core
+    const jetGrad = ctx.createLinearGradient(cx, cy, cx, cy + dir * jetLength);
+    jetGrad.addColorStop(0, 'rgba(255,255,255,0.8)');
+    jetGrad.addColorStop(0.2, 'rgba(183,148,244,0.5)');
+    jetGrad.addColorStop(1, 'rgba(99,179,237,0)');
+    ctx.strokeStyle = jetGrad;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx, cy + dir * jetLength);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawBlackHole(Rs, time) {
+  ctx.save();
+
+  // Outer gravitational red glow
+  const outerGlow = ctx.createRadialGradient(cx, cy, Rs, cx, cy, Rs * 4);
+  outerGlow.addColorStop(0, 'rgba(80,20,20,0.25)');
+  outerGlow.addColorStop(0.4, 'rgba(20,5,20,0.1)');
+  outerGlow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = outerGlow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, Rs * 4, 0, Math.PI*2);
+  ctx.fill();
+
+  // Shadow / event horizon (pure black)
+  ctx.beginPath();
+  ctx.arc(cx, cy, Rs, 0, Math.PI * 2);
+  ctx.fillStyle = '#000000';
+  ctx.fill();
+
+  // Subtle edge glow (photon capture)
+  const edgeGlow = ctx.createRadialGradient(cx, cy, Rs*0.85, cx, cy, Rs*1.15);
+  edgeGlow.addColorStop(0, 'rgba(0,0,0,1)');
+  edgeGlow.addColorStop(0.7, 'rgba(10,5,25,0.6)');
+  edgeGlow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = edgeGlow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, Rs * 1.15, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawPhotonSphere(Rs, time) {
+  ctx.save();
+
+  // Photon sphere at r = 1.5 Rs
+  const photonR = Rs * 1.5;
+  const pulseScale = 1 + 0.015 * Math.sin(time * 3);
+
+  // Dashed circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, photonR * pulseScale, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(183,148,244,0.35)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 8]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Moving photons along the sphere
+  const numPhotons = 12;
+  for (let i = 0; i < numPhotons; i++) {
+    const angle = (i / numPhotons) * Math.PI*2 + time * 1.5;
+    const px = cx + Math.cos(angle) * photonR;
+    const py = cy + Math.sin(angle) * photonR * Math.sin(params.incline * Math.PI/180 + 0.2);
+    const alpha = (0.4 + 0.6 * Math.abs(Math.sin(angle + time)));
+    ctx.beginPath();
+    ctx.arc(px, py, 1.5, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(183,148,244,${alpha})`;
+    ctx.fill();
+    const pg = ctx.createRadialGradient(px, py, 0, px, py, 5);
+    pg.addColorStop(0, `rgba(183,148,244,${alpha*0.5})`);
+    pg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = pg;
+    ctx.beginPath();
+    ctx.arc(px, py, 5, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+function drawLensingRing(Rs, time) {
+  ctx.save();
+
+  // Einstein ring — thin bright ring around BH
+  const eRingR = Rs * 2.6;
+  const segments = 200;
+
+  for (let i = 0; i < segments; i++) {
+    const a0 = (i / segments) * Math.PI * 2;
+    const a1 = ((i + 1) / segments) * Math.PI * 2;
+    const brightness = 0.15 + 0.25 * Math.pow(Math.abs(Math.sin(a0 * 1.5 + time * 0.3)), 2);
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, eRingR, a0, a1);
+    ctx.strokeStyle = `rgba(200,210,255,${brightness})`;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+
+  // Second, fainter ring (higher order lensing)
+  const ring2R = Rs * 2.15;
+  for (let i = 0; i < segments; i++) {
+    const a0 = (i / segments) * Math.PI * 2;
+    const a1 = ((i + 1) / segments) * Math.PI * 2;
+    const brightness = 0.05 + 0.1 * Math.pow(Math.abs(Math.sin(a0*2 + time*0.5)), 2);
+    ctx.beginPath();
+    ctx.arc(cx, cy, ring2R, a0, a1);
+    ctx.strokeStyle = `rgba(180,200,255,${brightness})`;
+    ctx.lineWidth = 0.7;
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ── Resize handler ───────────────────────────────────────────
+function resize() {
+  const wrap = canvas.parentElement;
+  W = canvas.width  = wrap.clientWidth;
+  H = canvas.height = wrap.clientHeight;
+  cx = W / 2;
+  cy = H / 2;
+  BH_R = Math.min(W, H) * 0.085 * Math.pow(params.mass / 10, 0.4);
+  resizeOverlays();
+  initStars();
+  initDiskParticles();
+  updateMetrics();
+}
+
+// ── Param updates ────────────────────────────────────────────
+function updateParam(name, input) {
+  const val = parseFloat(input.value);
+  const pct = ((val - parseFloat(input.min)) /
+               (parseFloat(input.max) - parseFloat(input.min)) * 100).toFixed(1);
+  input.style.setProperty('--p', pct + '%');
+
+  if (name === 'mass') {
+    params.mass = val;
+    document.getElementById('massVal').textContent = val + ' M☉';
+    BH_R = Math.min(W, H) * 0.085 * Math.pow(val / 10, 0.4);
+    initDiskParticles();
+  } else if (name === 'spin') {
+    params.spin = val / 100;
+    document.getElementById('spinVal').textContent = (val/100).toFixed(2);
+  } else if (name === 'disk') {
+    params.disk = val / 100;
+    document.getElementById('diskVal').textContent = val + '%';
+    initDiskParticles();
+  } else if (name === 'speed') {
+    params.speed = val / 10;
+    document.getElementById('speedVal').textContent = (val/10).toFixed(1) + 'x';
+  } else if (name === 'incline') {
+    params.incline = val;
+    document.getElementById('inclineVal').textContent = val + '°';
+  }
+  updateMetrics();
+}
+
+function toggleLayer(name) {
+  layers[name] = !layers[name];
+  const btn = document.getElementById('btn-' + name);
+  btn.classList.toggle('active', layers[name]);
+}
+
+// ── Init sliders with correct fill ──────────────────────────
+function initSliders() {
+  const sliders = [
+    ['massSlider', 1, 100],
+    ['spinSlider', 0, 99],
+    ['diskSlider', 0, 100],
+    ['speedSlider', 1, 50],
+    ['inclineSlider', 0, 89],
+  ];
+  sliders.forEach(([id, min, max]) => {
+    const el = document.getElementById(id);
+    const pct = ((parseFloat(el.value) - min) / (max - min) * 100).toFixed(1);
+    el.style.setProperty('--p', pct + '%');
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  STAR LAUNCHER & IMPACT SYSTEM
+//  قذف النجوم + فيزياء الجاذبية + تأثيرات الاصطدام الواقعية
+// ════════════════════════════════════════════════════════════
+
+// ── Canvases for overlay effects ─────────────────────────────
+const impactCanvas = document.getElementById('impactCanvas');
+const ictx         = impactCanvas.getContext('2d');
+const dragCanvas   = document.getElementById('dragArrow');
+const dctx         = dragCanvas.getContext('2d');
+
+// نوافذ التأثيرات دائماً بنفس حجم الـ canvas الأساسي
+function resizeOverlays() {
+  impactCanvas.width  = dragCanvas.width  = canvas.width;
+  impactCanvas.height = dragCanvas.height = canvas.height;
+}
+
+// ── State ─────────────────────────────────────────────────────
+let throwMode    = false;
+let isDragging   = false;
+let dragStart    = null;   // { x, y } — نقطة البداية
+let dragCurrent  = null;   // { x, y } — موقع الماوس الحالي
+
+let launchedObjs  = [];    // النجوم القذوفة
+let particles2    = [];    // جزيئات تأثير الاصطدام/التفكك
+let impactFlashes = [];    // ومضات الاصطدام
+let absorbedCount = 0;
+
+// ── Star type definitions ─────────────────────────────────────
+const STAR_TYPES = {
+  yellow:  { r:4,   coreColor:'#fff9c4', glowColor:'rgba(255,230,100,', label:'نجم أصفر'   },
+  blue:    { r:5,   coreColor:'#bbdefb', glowColor:'rgba(100,180,255,', label:'نجم أزرق'   },
+  red:     { r:4.5, coreColor:'#ffcdd2', glowColor:'rgba(255,100,80,',  label:'عملاق أحمر' },
+  white:   { r:3,   coreColor:'#ffffff', glowColor:'rgba(200,220,255,', label:'قزم أبيض'   },
+  neutron: { r:2.5, coreColor:'#e0f7fa', glowColor:'rgba(0,230,255,',   label:'نجم نيتروني', isNeutron:true },
+};
+
+// ── Toggle throw mode ─────────────────────────────────────────
+function toggleThrowMode() {
+  throwMode = !throwMode;
+  const btn  = document.getElementById('btnThrowMode');
+  const aim  = document.getElementById('aimCursor');
+  btn.classList.toggle('active-mode', throwMode);
+  btn.textContent = throwMode ? '❌ إلغاء وضع الإطلاق' : '🎯 وضع الإطلاق المباشر';
+  canvas.style.cursor = throwMode ? 'none' : 'crosshair';
+  if (!throwMode) {
+    aim.style.display = 'none';
+    dctx.clearRect(0, 0, dragCanvas.width, dragCanvas.height);
+    isDragging = false;
+  }
+  showToast(throwMode ? 'اسحب لتحديد الاتجاه والقوة ← ثم أطلق' : 'تم إلغاء وضع الإطلاق');
+}
+
+// ── Quick launch functions ────────────────────────────────────
+function launchRandomStar() {
+  const types = Object.keys(STAR_TYPES).filter(k => k !== 'neutron');
+  const type  = types[Math.floor(Math.random() * types.length)];
+  const angle = Math.random() * Math.PI * 2;
+  const dist  = Math.min(W, H) * 0.42;
+  const sx = cx + Math.cos(angle) * dist;
+  const sy = cy + Math.sin(angle) * dist;
+  spawnStar(sx, sy, getRandomVelocity(sx, sy, 1.5), type);
+  showToast('تم إطلاق ' + STAR_TYPES[type].label);
+}
+
+function launchStarBurst() {
+  const count = 8 + Math.floor(Math.random() * 6);
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 + Math.random() * 0.3;
+    const dist  = Math.min(W, H) * (0.3 + Math.random() * 0.15);
+    const sx = cx + Math.cos(angle) * dist;
+    const sy = cy + Math.sin(angle) * dist;
+    const types = ['yellow','blue','red','white'];
+    spawnStar(sx, sy, getRandomVelocity(sx, sy, 1.0 + Math.random()), types[i % 4]);
+  }
+  showToast('وابل ' + count + ' نجوم!');
+}
+
+function launchNeutronStar() {
+  const angle = Math.random() * Math.PI * 2;
+  const dist  = Math.min(W, H) * 0.38;
+  const sx = cx + Math.cos(angle) * dist;
+  const sy = cy + Math.sin(angle) * dist;
+  spawnStar(sx, sy, getRandomVelocity(sx, sy, 2.2), 'neutron');
+  showToast('نجم نيتروني مُطلق — تحرك شديد السرعة!');
+}
+
+function clearLaunched() {
+  launchedObjs = [];
+  particles2   = [];
+  impactFlashes= [];
+  updateLaunchStats();
+  showToast('تم مسح جميع الأجسام');
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function getRandomVelocity(sx, sy, speedMult) {
+  const dx = cx - sx, dy = cy - sy;
+  const d  = Math.sqrt(dx*dx + dy*dy) || 1;
+  const toCenter = { x: dx/d, y: dy/d };
+  const perp     = { x: -toCenter.y, y: toCenter.x };
+  const baseSpd  = BH_R * 0.0035 * speedMult;
+  const tangSpd  = BH_R * 0.003  * (0.5 + Math.random() * 1.5) * (Math.random()<0.5?1:-1);
+  return {
+    x: toCenter.x * baseSpd + perp.x * tangSpd,
+    y: toCenter.y * baseSpd + perp.y * tangSpd,
+  };
+}
+
+// ── Spawn a star object ───────────────────────────────────────
+function spawnStar(sx, sy, vel, typeName) {
+  const type = STAR_TYPES[typeName] || STAR_TYPES.yellow;
+  launchedObjs.push({
+    x: sx, y: sy,
+    vx: vel.x, vy: vel.y,
+    r:  type.r,
+    coreColor: type.coreColor,
+    glowColor: type.glowColor,
+    isNeutron: !!type.isNeutron,
+    typeName,
+    alive: true,
+    age: 0,
+    trail: [],           // مسار الذيل
+    tidalFrac: 0,        // مقدار التمزق (0-1)
+    orbiting: false,
+    opacity: 1,
+  });
+  updateLaunchStats();
+}
+
+// ── PHYSICS UPDATE ────────────────────────────────────────────
+function updateLaunched(dt) {
+  const Rs     = BH_R;
+  // ثابت جاذبية مدمج مع كتلة الثقب — يضبط التأثير على الشاشة
+  const G_sim  = Rs * Rs * 0.0022 * Math.sqrt(params.mass / 10);
+
+  launchedObjs.forEach(obj => {
+    if (!obj.alive) return;
+    obj.age += dt;
+
+    const dx   = cx - obj.x;
+    const dy   = cy - obj.y;
+    const dist = Math.sqrt(dx*dx + dy*dy) || 0.001;
+    const dirX = dx / dist, dirY = dy / dist;
+
+    // تسارع جاذبي: a = G·M / r²
+    const a = G_sim * params.mass / (dist * dist);
+    obj.vx += dirX * a * dt;
+    obj.vy += dirY * a * dt;
+    obj.x  += obj.vx * dt;
+    obj.y  += obj.vy * dt;
+
+    // تتبع المسار
+    obj.trail.push({ x: obj.x, y: obj.y });
+    if (obj.trail.length > 80) obj.trail.shift();
+
+    // اكتشاف المدار (السرعة العرضية عالية)
+    const vTang = Math.abs(obj.vx * (-dirY) + obj.vy * dirX);
+    const vRad  = Math.abs(obj.vx * dirX + obj.vy * dirY);
+    obj.orbiting = vTang > vRad * 0.7 && dist < Rs * 12 && dist > Rs * 1.5;
+
+    // تأثير المد والجزر: يبدأ عند 3Rs
+    if (dist < Rs * 3) {
+      obj.tidalFrac = Math.min(1, obj.tidalFrac + dt * 1.2);
+    }
+
+    // تلاشي تدريجي قرب الأفق
+    obj.opacity = dist < Rs * 2 ? Math.max(0, (dist - Rs) / Rs) : 1;
+
+    // ── الابتلاع عند أفق الحدث ──────────────────────────────
+    if (dist < Rs * 1.05) {
+      obj.alive = false;
+      absorbedCount++;
+      triggerAbsorption(obj.x, obj.y, obj.glowColor, obj.isNeutron);
+      updateLaunchStats();
+      return;
+    }
+
+    // حذف إذا ابتعد جداً
+    if (dist > Math.sqrt(W*W + H*H) * 0.9) {
+      obj.alive = false;
+      updateLaunchStats();
+    }
+  });
+
+  // تنظيف الميتة دورياً
+  if (launchedObjs.length > 200) launchedObjs = launchedObjs.filter(o => o.alive);
+}
+
+// ── ABSORPTION EVENT ─────────────────────────────────────────
+// تأثير الابتلاع الشامل: ومضة + خيوط + جسيمات + موجة صدمة
+function triggerAbsorption(ox, oy, glowCol, isNeutron) {
+  const Rs = BH_R;
+
+  // 1. ومضة مركزية
+  impactFlashes.push({ x: ox, y: oy, glowCol, age: 0, maxAge: isNeutron ? 1.2 : 0.8,
+    r: Rs * (isNeutron ? 2.5 : 1.8), isNeutron });
+
+  // 2. خيوط التمزق (Tidal Streams) — تتطاير من نقطة الابتلاع
+  const streamCount = isNeutron ? 24 : 16;
+  for (let i = 0; i < streamCount; i++) {
+    const angle = (i / streamCount) * Math.PI * 2 + Math.random() * 0.3;
+    const speed = Rs * (0.008 + Math.random() * 0.015) * (isNeutron ? 1.6 : 1);
+    const life  = 0.6 + Math.random() * 0.8;
+    particles2.push({
+      x: ox, y: oy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r:  isNeutron ? 2.5 : 1.8,
+      glowCol,
+      type: 'stream',
+      age: 0, maxAge: life,
+      alive: true,
+      fade: true,
+    });
+  }
+
+  // 3. جسيمات حرارية (حطام ساخن)
+  const debrisCount = isNeutron ? 40 : 25;
+  for (let i = 0; i < debrisCount; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Rs * (0.003 + Math.random() * 0.01);
+    particles2.push({
+      x: ox + (Math.random()-0.5)*Rs*0.5,
+      y: oy + (Math.random()-0.5)*Rs*0.5,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      r:  0.8 + Math.random() * 1.5,
+      glowCol: isNeutron ? 'rgba(0,230,255,' : 'rgba(255,180,60,',
+      type: 'debris',
+      age: 0, maxAge: 0.4 + Math.random() * 0.6,
+      alive: true, fade: true,
+    });
+  }
+
+  // 4. موجة صدمة دائرية (Shockwave)
+  impactFlashes.push({
+    x: ox, y: oy, glowCol,
+    age: 0, maxAge: 0.7,
+    r: 0, maxR: Rs * 5,
+    type: 'shockwave', isNeutron,
+  });
+
+  // 5. نبضة توهج للثقب الأسود نفسه
+  bhPulse = { age: 0, maxAge: 0.5, strength: isNeutron ? 1.0 : 0.6 };
+}
+
+// ── TIDAL DISRUPTION PARTICLES ────────────────────────────────
+// جسيمات تتساقط من النجم أثناء اقترابه
+function spawnTidalParticle(obj) {
+  const Rs = BH_R;
+  const angle = Math.random() * Math.PI * 2;
+  const speed = Rs * (0.001 + Math.random() * 0.004);
+  particles2.push({
+    x: obj.x + Math.cos(angle) * obj.r,
+    y: obj.y + Math.sin(angle) * obj.r,
+    vx: obj.vx * 0.3 + Math.cos(angle) * speed,
+    vy: obj.vy * 0.3 + Math.sin(angle) * speed,
+    r:  0.5 + Math.random(),
+    glowCol: obj.glowColor,
+    type: 'tidal',
+    age: 0, maxAge: 0.3 + Math.random() * 0.4,
+    alive: true, fade: true,
+  });
+}
+
+// نبضة الثقب الأسود عند الابتلاع
+let bhPulse = null;
+
+// ── DRAW ALL ──────────────────────────────────────────────────
+function drawLaunched(dt) {
+  updateLaunched(dt * 60);
+  updateParticles2(dt);
+  drawImpactEffects(dt);
+
+  // ── رسم النجوم المطلوقة ──────────────────────────────────
+  launchedObjs.forEach(obj => {
+    if (!obj.alive) return;
+    const dist = Math.sqrt((obj.x-cx)**2+(obj.y-cy)**2);
+
+    // توليد جسيمات مد وجزر
+    if (obj.tidalFrac > 0.1 && Math.random() < obj.tidalFrac * 0.4) {
+      spawnTidalParticle(obj);
+    }
+
+    ctx.save();
+    ctx.globalAlpha = obj.opacity;
+
+    // ── رسم الذيل (Trail) ───────────────────────────────────
+    if (obj.trail.length > 2) {
+      const len = obj.trail.length;
+      for (let i = 1; i < len; i++) {
+        const frac  = i / len;
+        const alpha = frac * 0.55 * obj.opacity;
+        const width = obj.r * frac * 0.8;
+        ctx.beginPath();
+        ctx.moveTo(obj.trail[i-1].x, obj.trail[i-1].y);
+        ctx.lineTo(obj.trail[i].x,   obj.trail[i].y);
+        ctx.strokeStyle = obj.glowColor + alpha + ')';
+        ctx.lineWidth   = Math.max(0.3, width);
+        ctx.lineCap     = 'round';
+        ctx.stroke();
+      }
+    }
+
+    // ── هالة التمزق المدّي ───────────────────────────────────
+    if (obj.tidalFrac > 0) {
+      const stretX = 1 + obj.tidalFrac * 2.0;
+      const stretY = Math.max(0.3, 1 - obj.tidalFrac * 0.6);
+      const angle  = Math.atan2(cy - obj.y, cx - obj.x);
+      ctx.save();
+      ctx.translate(obj.x, obj.y);
+      ctx.rotate(angle);
+      ctx.scale(stretX, stretY);
+      const tg = ctx.createRadialGradient(0, 0, 0, 0, 0, obj.r * 3);
+      tg.addColorStop(0, obj.glowColor + (0.5 * obj.opacity) + ')');
+      tg.addColorStop(1, obj.glowColor + '0)');
+      ctx.fillStyle = tg;
+      ctx.beginPath();
+      ctx.arc(0, 0, obj.r * 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // ── هالة خارجية (Outer Glow) ────────────────────────────
+    const outerR = obj.r * (obj.isNeutron ? 7 : 5);
+    const og = ctx.createRadialGradient(obj.x, obj.y, 0, obj.x, obj.y, outerR);
+    og.addColorStop(0,   obj.glowColor + (0.35 * obj.opacity) + ')');
+    og.addColorStop(0.4, obj.glowColor + (0.12 * obj.opacity) + ')');
+    og.addColorStop(1,   obj.glowColor + '0)');
+    ctx.fillStyle = og;
+    ctx.beginPath();
+    ctx.arc(obj.x, obj.y, outerR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── جسم النجم (Core) ────────────────────────────────────
+    const coreR = Math.max(0.5, obj.r * (1 - obj.tidalFrac * 0.5));
+    const cg = ctx.createRadialGradient(
+      obj.x - coreR * 0.3, obj.y - coreR * 0.3, 0,
+      obj.x, obj.y, coreR
+    );
+    cg.addColorStop(0, '#ffffff');
+    cg.addColorStop(0.4, obj.coreColor);
+    cg.addColorStop(1,   obj.glowColor + '0.8)');
+    ctx.fillStyle = cg;
+    ctx.beginPath();
+    ctx.arc(obj.x, obj.y, coreR, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── نبضة النجم النيتروني ────────────────────────────────
+    if (obj.isNeutron) {
+      const pulse = 0.5 + 0.5 * Math.sin(obj.age * 25);
+      const pr = ctx.createRadialGradient(obj.x, obj.y, 0, obj.x, obj.y, obj.r * 9 * pulse);
+      pr.addColorStop(0, 'rgba(0,230,255,' + (0.15 * pulse) + ')');
+      pr.addColorStop(1, 'rgba(0,230,255,0)');
+      ctx.fillStyle = pr;
+      ctx.beginPath();
+      ctx.arc(obj.x, obj.y, obj.r * 9 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  });
+
+  // ── رسم جسيمات التأثيرات ────────────────────────────────
+  particles2.forEach(p => {
+    if (!p.alive) return;
+    const frac  = p.age / p.maxAge;
+    const alpha = (1 - frac) * 0.85;
+    const r     = p.r * (1 - frac * 0.5);
+
+    ctx.save();
+    if (p.type === 'stream') {
+      // خيوط كالشُعلة
+      const pg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 4);
+      pg.addColorStop(0, p.glowCol + alpha + ')');
+      pg.addColorStop(1, p.glowCol + '0)');
+      ctx.fillStyle = pg;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // حطام وجسيمات مدّية
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.glowCol + '1)';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
+}
+
+// ── تحديث جسيمات التأثيرات ───────────────────────────────────
+function updateParticles2(dt) {
+  const Rs    = BH_R;
+  const G_sim = Rs * Rs * 0.0015 * (params.mass / 10);
+
+  particles2.forEach(p => {
+    if (!p.alive) return;
+    p.age += dt;
+    if (p.age >= p.maxAge) { p.alive = false; return; }
+
+    // جاذبية طفيفة نحو الثقب للجسيمات
+    const dx = cx - p.x, dy = cy - p.y;
+    const d  = Math.sqrt(dx*dx + dy*dy) || 1;
+    const a  = G_sim / (d * d);
+    p.vx += (dx/d) * a * dt;
+    p.vy += (dy/d) * a * dt;
+    p.x  += p.vx * dt;
+    p.y  += p.vy * dt;
+
+    if (d < Rs * 1.1) p.alive = false;
+  });
+
+  if (particles2.length > 600) particles2 = particles2.filter(q => q.alive);
+}
+
+// ── رسم تأثيرات الاصطدام (Flash + Shockwave) ─────────────────
+function drawImpactEffects(dt) {
+  impactFlashes.forEach(f => {
+    if (f.age >= f.maxAge) return;
+    f.age += dt;
+    const frac = f.age / f.maxAge;
+
+    if (f.type === 'shockwave') {
+      // موجة صدمة متمددة
+      const r = f.maxR * Math.pow(frac, 0.6);
+      const alpha = (1 - frac) * (f.isNeutron ? 0.6 : 0.4);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+      ctx.strokeStyle = f.glowCol + alpha + ')';
+      ctx.lineWidth = (1 - frac) * (f.isNeutron ? 4 : 2.5) + 0.5;
+      ctx.stroke();
+      // هالة داخلية
+      const sg = ctx.createRadialGradient(f.x, f.y, r*0.6, f.x, f.y, r);
+      sg.addColorStop(0, f.glowCol + (alpha * 0.3) + ')');
+      sg.addColorStop(1, f.glowCol + '0)');
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+    } else {
+      // ومضة مركزية — تتوسع ثم تتلاشى
+      const rFlash = f.r * Math.pow(frac < 0.3 ? frac/0.3 : 1 - (frac-0.3)/0.7, 0.5);
+      const alpha  = frac < 0.3
+        ? frac / 0.3
+        : Math.pow(1 - (frac - 0.3) / 0.7, 1.5);
+
+      ctx.save();
+      const fg = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, rFlash);
+      fg.addColorStop(0,   'rgba(255,255,255,' + (alpha * 0.95) + ')');
+      fg.addColorStop(0.15, f.glowCol + (alpha * 0.9) + ')');
+      fg.addColorStop(0.5,  f.glowCol + (alpha * 0.4) + ')');
+      fg.addColorStop(1,    f.glowCol + '0)');
+      ctx.fillStyle = fg;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, rFlash, 0, Math.PI * 2);
+      ctx.fill();
+
+      // هالة ثانية أوسع
+      const fg2 = ctx.createRadialGradient(f.x, f.y, rFlash*0.5, f.x, f.y, rFlash*2.5);
+      fg2.addColorStop(0, f.glowCol + (alpha * 0.3) + ')');
+      fg2.addColorStop(1, f.glowCol + '0)');
+      ctx.fillStyle = fg2;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, rFlash * 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  });
+
+  // نبضة الثقب الأسود
+  if (bhPulse) {
+    bhPulse.age += 0.016;
+    if (bhPulse.age < bhPulse.maxAge) {
+      const frac  = bhPulse.age / bhPulse.maxAge;
+      const alpha = (1 - frac) * bhPulse.strength * 0.5;
+      const r     = BH_R * (1.1 + frac * 2.5);
+      ctx.save();
+      const pg = ctx.createRadialGradient(cx, cy, BH_R, cx, cy, r);
+      pg.addColorStop(0, 'rgba(255,200,100,' + alpha + ')');
+      pg.addColorStop(1, 'rgba(255,100,50,0)');
+      ctx.fillStyle = pg;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    } else { bhPulse = null; }
+  }
+
+  // حذف التأثيرات المنتهية
+  impactFlashes = impactFlashes.filter(f => f.age < f.maxAge);
+}
+
+// ── Mouse events for drag-to-launch ───────────────────────────
+const canvasWrap = canvas.parentElement;
+
+canvas.addEventListener('mousedown', e => {
+  if (!throwMode) return;
+  const r = canvas.getBoundingClientRect();
+  dragStart   = { x: e.clientX - r.left, y: e.clientY - r.top };
+  dragCurrent = { ...dragStart };
+  isDragging  = true;
+});
+
+canvas.addEventListener('mousemove', e => {
+  const r   = canvas.getBoundingClientRect();
+  const mx  = e.clientX - r.left;
+  const my  = e.clientY - r.top;
+
+  // تحريك نقطة التصويب
+  const aim = document.getElementById('aimCursor');
+  if (throwMode) {
+    aim.style.display = 'block';
+    aim.style.left    = mx + 'px';
+    aim.style.top     = my + 'px';
+  }
+
+  if (!isDragging || !throwMode) return;
+  dragCurrent = { x: mx, y: my };
+
+  // رسم سهم الاتجاه والقوة
+  dctx.clearRect(0, 0, dragCanvas.width, dragCanvas.height);
+  const dx = dragStart.x - dragCurrent.x;
+  const dy = dragStart.y - dragCurrent.y;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  if (len < 5) return;
+
+  // الخط الأساسي
+  dctx.save();
+  dctx.setLineDash([6, 4]);
+  dctx.strokeStyle = 'rgba(252,129,129,0.55)';
+  dctx.lineWidth   = 1.5;
+  dctx.beginPath();
+  dctx.moveTo(dragStart.x, dragStart.y);
+  dctx.lineTo(dragCurrent.x, dragCurrent.y);
+  dctx.stroke();
+  dctx.setLineDash([]);
+
+  // رأس السهم في اتجاه القذف (عكس السحب)
+  const arrowX = dragStart.x + dx;
+  const arrowY = dragStart.y + dy;
+  const ang    = Math.atan2(dy, dx);
+  dctx.fillStyle = 'rgba(252,129,129,0.75)';
+  dctx.beginPath();
+  dctx.moveTo(arrowX, arrowY);
+  dctx.lineTo(arrowX - 12*Math.cos(ang-0.4), arrowY - 12*Math.sin(ang-0.4));
+  dctx.lineTo(arrowX - 12*Math.cos(ang+0.4), arrowY - 12*Math.sin(ang+0.4));
+  dctx.closePath();
+  dctx.fill();
+
+  // دائرة نقطة الإطلاق
+  dctx.beginPath();
+  dctx.arc(dragStart.x, dragStart.y, 5, 0, Math.PI*2);
+  dctx.fillStyle = 'rgba(252,129,129,0.6)';
+  dctx.fill();
+
+  // نص القوة
+  const power = Math.min(100, Math.round(len / (Math.min(W,H) * 0.002)));
+  dctx.font = '11px JetBrains Mono, monospace';
+  dctx.fillStyle = 'rgba(252,129,129,0.8)';
+  dctx.fillText('قوة: ' + power + '%', dragStart.x + 10, dragStart.y - 10);
+
+  dctx.restore();
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (!throwMode || !isDragging) return;
+  const r   = canvas.getBoundingClientRect();
+  const upX = e.clientX - r.left;
+  const upY = e.clientY - r.top;
+
+  dctx.clearRect(0, 0, dragCanvas.width, dragCanvas.height);
+  isDragging = false;
+
+  const dx = dragStart.x - upX;
+  const dy = dragStart.y - upY;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  if (len < 8) {
+    // نقرة بدون سحب — إطلاق بقوة افتراضية
+    const types = ['yellow','blue','red','white'];
+    const type  = types[Math.floor(Math.random() * types.length)];
+    spawnStar(dragStart.x, dragStart.y, getRandomVelocity(dragStart.x, dragStart.y, 1.5), type);
+    return;
+  }
+
+  // حساب السرعة من مسافة السحب
+  const maxDrag   = Math.min(W, H) * 0.35;
+  const power     = Math.min(1, len / maxDrag);
+  const speed     = BH_R * 0.006 * (0.5 + power * 2.5);
+  const normX     = dx / len;
+  const normY     = dy / len;
+
+  // اختيار نوع النجم حسب القوة
+  let typeName;
+  if (power > 0.8)       typeName = 'neutron';
+  else if (power > 0.55) typeName = 'blue';
+  else if (power > 0.3)  typeName = 'red';
+  else                   typeName = 'yellow';
+
+  spawnStar(dragStart.x, dragStart.y, { x: normX * speed, y: normY * speed }, typeName);
+  showToast(STAR_TYPES[typeName].label + ' · قوة ' + Math.round(power*100) + '%');
+});
+
+canvas.addEventListener('mouseleave', () => {
+  if (!throwMode) return;
+  document.getElementById('aimCursor').style.display = 'none';
+  if (isDragging) {
+    isDragging = false;
+    dctx.clearRect(0, 0, dragCanvas.width, dragCanvas.height);
+  }
+});
+
+// ── Stats update ──────────────────────────────────────────────
+function updateLaunchStats() {
+  const alive    = launchedObjs.filter(o => o.alive).length;
+  const orbiting = launchedObjs.filter(o => o.alive && o.orbiting).length;
+  document.getElementById('statActive').textContent   = alive;
+  document.getElementById('statAbsorbed').textContent = absorbedCount;
+  document.getElementById('statOrbiting').textContent = orbiting;
+}
+
+// ── Toast notification ────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ── Start ────────────────────────────────────────────────────
+window.addEventListener('resize', resize);
+resize();
+initSliders();
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
