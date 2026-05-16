@@ -1,6 +1,6 @@
 # 🌌 Black Hole JSS Simulations
 
-An interactive web-based simulation of a black hole built using **HTML, CSS, and JavaScript**.  
+An interactive web-based simulation of a black hole built using **HTML, CSS, and JavaScript**. 
 It uses the Canvas API to render a real-time visualization of particles influenced by a simplified gravitational field.
 
 🔗 Live Demo:  
